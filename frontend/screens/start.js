@@ -1,6 +1,7 @@
 import { requestMotionPermission, startListening } from '../core/sensors.js';
 import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
+import { createAutoStopDetector } from '../core/autoStop.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -51,6 +52,16 @@ export function initStart() {
     renderTrial();
     showScreen('trial');
   });
+
+  // Both the manual Stop button and the auto-detector call this one function
+  function finishRecording(reason) {
+    lastTrialSamples = recorder.stop();
+    recordBtn.textContent = 'Start Recording';
+    recordingEl.textContent = `${lastTrialSamples.length} samples captured (${reason})`;
+    viewChartBtn.disabled = false;
+  }
+
+  const autoStop = createAutoStopDetector(() => finishRecording('auto-stopped'));
   const recordingEl = document.getElementById('recording-readout');
 
   let sampleTimes = [];
@@ -99,6 +110,10 @@ export function initStart() {
         document.getElementById('val-ax').textContent = motion.accel.x.toFixed(1);
         document.getElementById('val-ay').textContent = motion.accel.y.toFixed(1);
         document.getElementById('val-az').textContent = motion.accel.z.toFixed(1);
+
+        if (recorder.isRecording) {
+          autoStop.addSample(motion.accel);
+        }
       }
     );
 
@@ -116,15 +131,11 @@ export function initStart() {
   recordBtn.addEventListener('click', () => {
     if (!recorder.isRecording) {
       recorder.start();
+      autoStop.arm();
       recordBtn.textContent = 'Stop Recording';
-      recordingEl.textContent = 'recording...';
+      recordingEl.textContent = 'recording... (auto-stop armed after 2s)';
     } else {
-      // Manual stop for now 
-      // later when auto-stop (stride detection) takes over.
-      lastTrialSamples = recorder.stop();
-      recordBtn.textContent = 'Start Recording';
-      recordingEl.textContent = `${lastTrialSamples.length} samples captured`;
-      viewChartBtn.disabled = false;
+      finishRecording('manual');
     }
   });
 }
