@@ -1,6 +1,9 @@
 import { requestMotionPermission, startListening } from '../core/sensors.js';
+import { createCalibrator } from '../core/calibration.js';
 
-let stopListening = null; // holds the cleanup function once sensors are live
+let stopListening = null;
+let latestOrientation = { alpha: 0, beta: 0, gamma: 0 };
+const calibrator = createCalibrator();
 
 export function initStart() {
   const controls = document.getElementById('start-controls');
@@ -8,17 +11,18 @@ export function initStart() {
   controls.innerHTML = `
     <div class="dim" id="start-status">Tap Enable to request motion access.</div>
     <button class="primary" id="enable-btn">Enable Motion</button>
+    <button id="calibrate-btn" disabled>Calibrate Zero</button>
     <div class="dim" id="hz-readout" style="text-align:right;margin-top:8px;">-- Hz</div>
 
     <div class="trial-card">
-      <strong>Orientation (°)</strong>
-      <div>Pitch (β): <span id="val-beta">--</span></div>
-      <div>Roll (γ): <span id="val-gamma">--</span></div>
-      <div>Yaw (α): <span id="val-alpha">--</span></div>
+      <strong>Orientation (&deg; from calibration)</strong>
+      <div>Pitch: <span id="val-pitch">--</span></div>
+      <div>Roll: <span id="val-roll">--</span></div>
+      <div>Yaw: <span id="val-yaw">--</span></div>
     </div>
 
     <div class="trial-card">
-      <strong>Acceleration (m/s², incl. gravity)</strong>
+      <strong>Acceleration (m/s&sup2;, incl. gravity)</strong>
       <div>X: <span id="val-ax">--</span></div>
       <div>Y: <span id="val-ay">--</span></div>
       <div>Z: <span id="val-az">--</span></div>
@@ -27,6 +31,7 @@ export function initStart() {
 
   const statusEl = document.getElementById('start-status');
   const enableBtn = document.getElementById('enable-btn');
+  const calibrateBtn = document.getElementById('calibrate-btn');
   const hzEl = document.getElementById('hz-readout');
 
   let sampleTimes = [];
@@ -41,16 +46,20 @@ export function initStart() {
       return;
     }
 
-    // Guard against double-attaching listeners if this ever runs twice
     if (stopListening) stopListening();
 
     stopListening = startListening(
       (orientation) => {
-        document.getElementById('val-beta').textContent = orientation.beta.toFixed(1);
-        document.getElementById('val-gamma').textContent = orientation.gamma.toFixed(1);
-        document.getElementById('val-alpha').textContent = orientation.alpha.toFixed(1);
+        latestOrientation = orientation;
 
-        // Sample-rate readout — this is your "terminal" on a phone with no console
+        const relative = calibrator.isCalibrated
+          ? calibrator.getRelative(orientation)
+          : { pitch: 0, roll: 0, yaw: 0 };
+
+        document.getElementById('val-pitch').textContent = relative.pitch.toFixed(1) + '°';
+        document.getElementById('val-roll').textContent = relative.roll.toFixed(1) + '°';
+        document.getElementById('val-yaw').textContent = relative.yaw.toFixed(1) + '°';
+
         const now = performance.now();
         sampleTimes.push(now);
         if (sampleTimes.length > 30) sampleTimes.shift();
@@ -66,7 +75,13 @@ export function initStart() {
       }
     );
 
-    statusEl.textContent = 'Live. Values below should update as you move the phone.';
+    statusEl.textContent = 'Live. Hold running position, then tap Calibrate Zero.';
     enableBtn.textContent = 'Enabled';
+    calibrateBtn.disabled = false;
+  });
+
+  calibrateBtn.addEventListener('click', () => {
+    calibrator.calibrate(latestOrientation);
+    statusEl.textContent = 'Calibrated. Values above are now relative to this pose.';
   });
 }
