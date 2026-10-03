@@ -101,9 +101,6 @@ export function initStart() {
 
         // Recorder decides for itself whether this counts — safe to call always
         recorder.addSample({ pitch: latestRelative.pitch, roll: latestRelative.roll, yaw: latestRelative.yaw, accel: latestAccel });
-        if (recorder.isRecording) {
-          recordingEl.textContent = 'recording...';
-        }
       },
       (motion) => {
         latestAccel = motion.accel;
