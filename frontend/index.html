@@ -3,33 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ReStride</title>
+<title>Restride</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-  <!-- All three screens live here -->
-  <!-- Only one has class="active" at a time; app.js controls which. -->
-
   <div id="screen-home" class="screen active">
-    <h1>ReStride</h1>
+    <h1>Restride</h1>
     <p class="dim">Your saved trials</p>
-    <div id="trial-list"><!-- home.js --></div>
+    <div id="trial-list"></div>
     <button class="primary" id="new-trial-btn">New Trial</button>
   </div>
 
   <div id="screen-trial" class="screen">
     <button class="back" id="trial-back-btn">&larr; Back</button>
     <h2 id="trial-title">Trial</h2>
-    <div id="trial-details"><!-- trial.js --></div>
+    <div id="trial-details"><p class="dim">No trial recorded yet.</p></div>
   </div>
 
   <div id="screen-start" class="screen">
     <button class="back" id="start-back-btn">&larr; Back</button>
     <h2>New Trial</h2>
-    <div id="start-controls"><!-- start.js --></div>
+    <div id="start-controls"></div>
   </div>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>

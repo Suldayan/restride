@@ -1,6 +1,8 @@
 import { requestMotionPermission, startListening } from '../core/sensors.js';
 import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
+import { renderTrial } from './trial.js';
+import { showScreen } from '../app.js';
 
 let stopListening = null;
 let latestOrientation = { alpha: 0, beta: 0, gamma: 0 };
@@ -18,6 +20,7 @@ export function initStart() {
     <button class="primary" id="enable-btn">Enable Motion</button>
     <button id="calibrate-btn" disabled>Calibrate Zero</button>
     <button id="record-btn" disabled>Start Recording</button>
+    <button id="view-chart-btn" disabled>View Chart</button>
     <div class="dim" id="hz-readout" style="text-align:right;margin-top:8px;">-- Hz</div>
     <div class="dim" id="recording-readout" style="text-align:right;">not recording</div>
 
@@ -40,7 +43,14 @@ export function initStart() {
   const enableBtn = document.getElementById('enable-btn');
   const calibrateBtn = document.getElementById('calibrate-btn');
   const recordBtn = document.getElementById('record-btn');
+  const viewChartBtn = document.getElementById('view-chart-btn');
   const hzEl = document.getElementById('hz-readout');
+
+  viewChartBtn.addEventListener('click', () => {
+    document.getElementById('trial-title').textContent = 'Latest Recording';
+    renderTrial();
+    showScreen('trial');
+  });
   const recordingEl = document.getElementById('recording-readout');
 
   let sampleTimes = [];
@@ -114,6 +124,7 @@ export function initStart() {
       lastTrialSamples = recorder.stop();
       recordBtn.textContent = 'Start Recording';
       recordingEl.textContent = `${lastTrialSamples.length} samples captured`;
+      viewChartBtn.disabled = false;
     }
   });
 }
