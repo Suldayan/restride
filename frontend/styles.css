@@ -1,0 +1,56 @@
+:root {
+  --bg: #0d1117;
+  --panel: #151b23;
+  --line: #2a3340;
+  --text: #e8edf3;
+  --dim: #7a8699;
+  --accent: #ff7a3d;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f3ee;
+    --panel: #ffffff;
+    --line: #ddd7c9;
+    --text: #1a1a1a;
+    --dim: #6b6558;
+    --accent: #c7532e;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: env(safe-area-inset-top, 20px) 16px env(safe-area-inset-bottom, 20px);
+}
+
+/* This is the whole trick: hide every screen, show only the active one */
+.screen { display: none; max-width: 480px; margin: 0 auto; }
+.screen.active { display: block; }
+
+.dim { color: var(--dim); font-size: 13px; }
+button {
+  width: 100%;
+  padding: 16px;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  margin-top: 10px;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: #100a06; }
+button.back { width: auto; padding: 8px 14px; margin-bottom: 16px; }
+.trial-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 10px;
+  cursor: pointer;
+}
