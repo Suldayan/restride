@@ -1,36 +1,95 @@
-// Given a reference trial's samples, score how far a
-// live reading has drifted from it. Aligns by elapsed time for now — a
-// simpler stand-in for stride-based alignment, swappable later without
-// changing how callers use this module.
+function angleDifference(a, b) {
+  const difference = Math.abs(a - b) % 360;
+  return Math.min(difference, 360 - difference);
+}
+
+function accelerationMagnitude(accel) {
+  return Math.hypot(accel.x, accel.y, accel.z);
+}
 
 export function createDeviationTracker(referenceSamples, options = {}) {
-  const thresholdDeg = options.thresholdDeg ?? 15; // combined pitch+roll+yaw delta considered "drifting"
-  let refIndex = 0; // reference is time-ordered, only moving forward
+  const thresholdDeg = options.thresholdDeg ?? 15;
+  const thresholdAccelMps2 = options.thresholdAccelMps2 ?? 3;
+  const sustainedMs = options.sustainedMs ?? 1500;
+  const cooldownMs = options.cooldownMs ?? 5000;
+  const onStateChange = options.onStateChange ?? (() => {});
+  let outsideSince = null;
+  let lastAlertAt = -Infinity;
+  let state = 'within-range';
+
+  function setState(nextState) {
+    if (nextState === state) return;
+    state = nextState;
+    onStateChange(nextState);
+  }
 
   function nearestReferenceSample(elapsedMs) {
-    while (
-      refIndex < referenceSamples.length - 1 &&
-      Math.abs(referenceSamples[refIndex + 1].t - elapsedMs) <= Math.abs(referenceSamples[refIndex].t - elapsedMs)
-    ) {
-      refIndex++;
+    let low = 0;
+    let high = referenceSamples.length - 1;
+    while (low < high) {
+      const middle = Math.floor((low + high) / 2);
+      const next = middle + 1;
+      if (Math.abs(referenceSamples[next].t - elapsedMs) <=
+          Math.abs(referenceSamples[middle].t - elapsedMs)) {
+        low = next;
+      } else {
+        high = middle;
+      }
     }
-    return referenceSamples[refIndex];
+    return referenceSamples[low];
   }
 
   return {
-    /** Call with the live elapsed time (ms) and current {pitch, roll, yaw}. */
-    check(elapsedMs, live) {
+    check(elapsedMs, live, accel = referenceSamples[0]?.accel, now = performance.now()) {
       if (referenceSamples.length === 0) {
-        return { deviationScore: 0, isDeviating: false };
+        setState('unavailable');
+        return { deviationScore: 0, isDeviating: false, alertTriggered: false };
       }
 
-      const ref = nearestReferenceSample(elapsedMs);
-      const deviationScore =
-        Math.abs(live.pitch - ref.pitch) +
-        Math.abs(live.roll - ref.roll) +
-        Math.abs(live.yaw - ref.yaw);
+      const reference = nearestReferenceSample(elapsedMs);
+      const orientationDeviation =
+        angleDifference(live.pitch, reference.pitch) +
+        angleDifference(live.roll, reference.roll) +
+        angleDifference(live.yaw, reference.yaw);
+      const accelerationDeviation = Math.abs(
+        accelerationMagnitude(accel) - accelerationMagnitude(reference.accel)
+      );
+      const isDeviating =
+        orientationDeviation > thresholdDeg ||
+        accelerationDeviation > thresholdAccelMps2;
 
-      return { deviationScore, isDeviating: deviationScore > thresholdDeg };
+      if (!isDeviating) {
+        outsideSince = null;
+        setState('within-range');
+        return {
+          isDeviating: false,
+          deviationScore: 0,
+          orientationDeviation,
+          accelerationDeviation,
+          alertTriggered: false
+        };
+      }
+
+      if (outsideSince === null) {
+        outsideSince = now;
+        setState('pending');
+      }
+
+      const alertTriggered =
+        now - outsideSince >= sustainedMs &&
+        now - lastAlertAt >= cooldownMs;
+      if (alertTriggered) {
+        lastAlertAt = now;
+        setState('alert');
+      }
+
+      return {
+        isDeviating: true,
+        deviationScore: orientationDeviation,
+        orientationDeviation,
+        accelerationDeviation,
+        alertTriggered
+      };
     }
   };
 }

@@ -2,6 +2,7 @@ import { requestMotionPermission, startListening } from '../core/sensors.js';
 import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
 import { createAutoStopDetector } from '../core/autoStop.js';
+import { createDeviationTracker } from '../core/deviation.js';
 import { addTrial, createTrial, getTrials, setTrialReference } from '../core/trials.js';
 import { processTrial } from '../core/api.js';
 import { renderTrial } from './trial.js';
@@ -24,6 +25,7 @@ let draftSamples = null;
 let draftSavedTrialId = null;
 let countdownAudioContext = null;
 let countdownAudioResume = null;
+let deviationTracker = null;
 
 function resumeCountdownAudio() {
   if (!countdownAudioContext || countdownAudioContext.state === 'running') {
@@ -92,6 +94,26 @@ function playCountdownBeep(isGo = false) {
   });
 }
 
+function playDeviationAlert() {
+  if (!countdownAudioContext) return;
+  void resumeCountdownAudio().catch(error => {
+    console.warn('Could not resume audio for deviation alert.', error);
+  });
+
+  const now = countdownAudioContext.currentTime + 0.01;
+  const oscillator = countdownAudioContext.createOscillator();
+  const gain = countdownAudioContext.createGain();
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(520, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.12, now + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+  oscillator.connect(gain);
+  gain.connect(countdownAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.16);
+}
+
 function formatElapsed(milliseconds) {
   const totalSeconds = Math.floor(milliseconds / 1000);
   return `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
@@ -118,6 +140,14 @@ export function initStart() {
           <button type="button" id="delay-plus" aria-label="Increase start delay">+</button>
         </div>
       </div>
+      <section class="deviation-settings" aria-label="Deviation warning thresholds">
+        <p class="eyebrow">FORM ALERT SENSITIVITY</p>
+        <label for="deviation-angle">Orientation tolerance <output id="deviation-angle-value">15°</output></label>
+        <input id="deviation-angle" type="range" min="5" max="60" step="1" value="15">
+        <label for="deviation-accel">Acceleration tolerance <output id="deviation-accel-value">3.0 m/s²</output></label>
+        <input id="deviation-accel" type="range" min="1" max="8" step="0.5" value="3">
+        <small>Alerts compare your movement with the saved reference trial.</small>
+      </section>
       <button class="primary-button start-run-button" id="start-run-btn" type="button" disabled><span>Start Trial</span><span>→</span></button>
       <p class="start-hint">Auto-stop waits 2 seconds after recording begins, then ends the trial after 1.5 seconds without movement.</p>
     </section>
@@ -137,11 +167,20 @@ export function initStart() {
 
   document.getElementById('delay-minus').addEventListener('click', () => updateDelay(countdownSeconds - 1));
   document.getElementById('delay-plus').addEventListener('click', () => updateDelay(countdownSeconds + 1));
+  const deviationAngleInput = document.getElementById('deviation-angle');
+  const deviationAccelInput = document.getElementById('deviation-accel');
+  deviationAngleInput.addEventListener('input', () => {
+    document.getElementById('deviation-angle-value').textContent = `${deviationAngleInput.value}°`;
+  });
+  deviationAccelInput.addEventListener('input', () => {
+    document.getElementById('deviation-accel-value').textContent = `${Number(deviationAccelInput.value).toFixed(1)} m/s²`;
+  });
 
   function finishRecording(reason) {
     if (!recorder.isRecording) return;
     draftSamples = recorder.stop();
     autoStop.disarm();
+    deviationTracker = null;
     window.clearInterval(elapsedTimer);
     runState.innerHTML = `
       <div class="run-state-heading"><p class="eyebrow">ATTEMPT COMPLETE · ${reason === 'auto-stopped' ? 'AUTO-STOPPED' : 'STOPPED'}</p><h2>Preview Your Run</h2><p>Review your results, delete this attempt, or save it with a name.</p></div>
@@ -247,14 +286,37 @@ export function initStart() {
 
   function startRecording() {
     recordingCreatedAt = new Date().toISOString();
+    const referenceTrial = getTrials().find(trial => trial.isReference && trial.samples.length > 0);
+    deviationTracker = referenceTrial
+      ? createDeviationTracker(referenceTrial.samples, {
+        thresholdDeg: Number(deviationAngleInput.value),
+        thresholdAccelMps2: Number(deviationAccelInput.value),
+        sustainedMs: 1500,
+        cooldownMs: 5000,
+        onStateChange(state) {
+          const warning = document.getElementById('deviation-status');
+          if (!warning) return;
+          const messages = {
+            pending: 'Deviation detected. Return to range within 1.5 seconds to avoid an alert.',
+            alert: 'Form deviation: movement is outside your reference range.',
+            'within-range': 'Back within your acceptable movement range.'
+          };
+          if (messages[state]) warning.textContent = messages[state];
+        }
+      })
+      : null;
     runState.innerHTML = `
       <div class="recording-panel">
         <div class="recording-status"><i></i><span><small>TRIAL IN PROGRESS</small><strong>Recording Your Movement</strong></span></div>
         <div class="elapsed-display"><small>ELAPSED</small><strong id="elapsed-time">00:00</strong><span class="recording-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
         <p class="auto-stop-status" id="auto-stop-status" aria-live="polite">Auto-stop is waiting for the 2-second grace period.</p>
+        <p class="deviation-status" id="deviation-status" aria-live="polite"></p>
         <button type="button" class="delete-button" id="stop-run-btn">Stop Trial</button>
       </div>
     `;
+    document.getElementById('deviation-status').textContent = referenceTrial
+      ? `Monitoring against ${referenceTrial.label}.`
+      : 'Set a saved reference trial to enable form deviation alerts.';
     recorder.start();
     recordingStartedAt = performance.now();
     autoStop.arm();
@@ -348,7 +410,15 @@ export function initStart() {
         },
         motion => {
           latestAccel = motion.accel;
-          if (recorder.isRecording) autoStop.addSample(motion.accel);
+          if (recorder.isRecording) {
+            autoStop.addSample(motion.accel);
+            const deviation = deviationTracker?.check(
+              performance.now() - recordingStartedAt,
+              latestRelative,
+              motion.accel
+            );
+            if (deviation?.alertTriggered) playDeviationAlert();
+          }
         }
       );
       isEnabled = true;
