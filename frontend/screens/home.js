@@ -63,7 +63,7 @@ function renderOverview(container, trials) {
     </div>
     <section class="home-start-card">
       <div><p class="eyebrow">${trials.length ? 'READY FOR ANOTHER RUN?' : 'READY FOR YOUR FIRST RUN?'}</p><h2>${trials.length ? 'Keep building your movement history.' : 'Your training starts with one trial.'}</h2><p>${trials.length ? 'Record a new run and compare it with your saved trials.' : 'Record a run to build your movement history and see your results.'}</p></div>
-      <button type="button" class="primary-button">Record a Trial <span aria-hidden="true">→</span></button>
+      <button type="button" class="primary-button">${trials.length ? 'Start Another Trial' : 'Record a Trial'} <span aria-hidden="true">→</span></button>
     </section>
   `;
 
@@ -71,7 +71,10 @@ function renderOverview(container, trials) {
   container.querySelector('.reference-subtitle').textContent = reference
     ? reference.label
     : 'choose a trial to compare';
-  container.querySelector('.primary-button').addEventListener('click', () => showScreen('start'));
+  container.querySelector('.primary-button').addEventListener('click', () => {
+    showScreen('start');
+    document.dispatchEvent(new CustomEvent('restride:start-trial'));
+  });
 }
 
 export function initHome() {

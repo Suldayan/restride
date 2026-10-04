@@ -227,6 +227,12 @@ export function initStart() {
     }, 1000);
   }
 
+  document.addEventListener('restride:start-trial', () => {
+    if (isEnabled && calibrator.isCalibrated && !recorder.isRecording && countdownTimer === null) {
+      beginCountdown();
+    }
+  });
+
   function resetForNextRun() {
     window.clearInterval(elapsedTimer);
     draftSamples = null;
