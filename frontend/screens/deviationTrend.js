@@ -68,94 +68,55 @@ function formatTrialDate(trial) {
   });
 }
 
-function createTrajectorySvg(reference, comparisons) {
+function createTrendLineChart(reference, comparisons, metric) {
   const plottedTrials = [reference, ...comparisons.map(comparison => comparison.trial)];
   let maxMagnitude = 0;
-  plottedTrials.forEach(trial => trial.samples.forEach(sample => {
-    maxMagnitude = Math.max(maxMagnitude, Math.abs(sample.roll), Math.abs(sample.pitch));
-  }));
-  const axisLimit = Math.min(180, Math.max(10, Math.ceil(maxMagnitude / 5) * 5));
-  const width = 440;
-  const height = 360;
-  const centerX = 220;
-  const centerY = 177;
-  const radius = 148;
-  const scale = radius / axisLimit;
-  const x = value => centerX + value * scale;
-  const y = value => centerY - value * scale;
-  const gridStep = axisLimit <= 20 ? 5 : axisLimit <= 60 ? 10 : 30;
+  plottedTrials.forEach(trial => {
+    for (let index = 0; index < COMPARISON_SAMPLE_COUNT; index++) {
+      const sample = sampleAtProgress(trial, index / (COMPARISON_SAMPLE_COUNT - 1));
+      maxMagnitude = Math.max(maxMagnitude, Math.abs(sample[metric.key]));
+    }
+  });
+
+  const axisLimit = Math.min(180, Math.max(5, Math.ceil(maxMagnitude / 5) * 5));
+  const width = 640;
+  const height = 225;
+  const padding = { left: 48, right: 14, top: 15, bottom: 34 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const x = progress => padding.left + progress * plotWidth;
+  const y = value => padding.top + ((axisLimit - value) / (axisLimit * 2)) * plotHeight;
+  const yTicks = [-axisLimit, -axisLimit / 2, 0, axisLimit / 2, axisLimit];
+  const xTicks = [0, 0.25, 0.5, 0.75, 1];
 
   function pathFor(trial) {
-    const points = Array.from({ length: COMPARISON_SAMPLE_COUNT }, (_, index) => {
-      const sample = sampleAtProgress(trial, index / (COMPARISON_SAMPLE_COUNT - 1));
-      return { x: x(sample.roll), y: y(sample.pitch) };
-    });
-    const smoothedPoints = points.map((point, index) => {
-      const window = points.slice(Math.max(0, index - 2), Math.min(points.length, index + 3));
-      return {
-        x: window.reduce((total, item) => total + item.x, 0) / window.length,
-        y: window.reduce((total, item) => total + item.y, 0) / window.length
-      };
-    });
-    smoothedPoints[0] = points[0];
-    smoothedPoints[smoothedPoints.length - 1] = points.at(-1);
-    return smoothedPoints.map((point, index) =>
-      `${index ? 'L' : 'M'}${point.x.toFixed(1)},${point.y.toFixed(1)}`
-    ).join(' ');
+    return Array.from({ length: COMPARISON_SAMPLE_COUNT }, (_, index) => {
+      const progress = index / (COMPARISON_SAMPLE_COUNT - 1);
+      const sample = sampleAtProgress(trial, progress);
+      return `${index ? 'L' : 'M'}${x(progress).toFixed(1)},${y(sample[metric.key]).toFixed(1)}`;
+    }).join(' ');
   }
 
-  const rings = [];
-  for (let value = gridStep; value <= axisLimit; value += gridStep) {
-    const gridRadius = value * scale;
-    rings.push(`<circle class="trajectory-ring${value === axisLimit ? ' outer-ring' : ''}" cx="${centerX}" cy="${centerY}" r="${gridRadius.toFixed(1)}"/>`);
-    rings.push(`<text class="trajectory-ring-label" x="${centerX + 4}" y="${(centerY - gridRadius + 10).toFixed(1)}">${value}°</text>`);
-  }
+  const grid = [
+    ...yTicks.map(value => `
+      <line class="trend-grid-line${value === 0 ? ' zero-line' : ''}" x1="${padding.left}" y1="${y(value)}" x2="${width - padding.right}" y2="${y(value)}"/>
+      <text class="trend-tick-label" x="${padding.left - 8}" y="${y(value) + 3}" text-anchor="end">${value}°</text>
+    `),
+    ...xTicks.map(progress => `
+      <line class="trend-grid-line vertical-grid-line" x1="${x(progress)}" y1="${padding.top}" x2="${x(progress)}" y2="${height - padding.bottom}"/>
+      <text class="trend-tick-label" x="${x(progress)}" y="${height - 12}" text-anchor="middle">${Math.round(progress * 100)}%</text>
+    `)
+  ].join('');
 
-  const comparisonPaths = comparisons.map(({ trial, color }, index) => {
-    const trialColor = color ?? comparisonColor(index);
-    const start = sampleAtProgress(trial, 0);
-    const end = sampleAtProgress(trial, 1);
-    return `
-      <path class="deviation-path comparison-path" d="${pathFor(trial)}" stroke="${trialColor}"/>
-      <circle class="comparison-endpoint" cx="${x(start.roll)}" cy="${y(start.pitch)}" r="3" fill="${trialColor}"/>
-      <circle class="comparison-endpoint" cx="${x(end.roll)}" cy="${y(end.pitch)}" r="3" fill="${trialColor}"/>
-    `;
-  }).join('');
-  const referencePath = pathFor(reference);
-  const firstReferencePoint = sampleAtProgress(reference, 0);
-  const lastReferencePoint = sampleAtProgress(reference, 1);
-  const firstX = x(firstReferencePoint.roll);
-  const firstY = y(firstReferencePoint.pitch);
-  const lastX = x(lastReferencePoint.roll);
-  const lastY = y(lastReferencePoint.pitch);
+  const comparisonPaths = comparisons.map(({ trial, color }, index) => `
+    <path class="deviation-path comparison-path" d="${pathFor(trial)}" stroke="${color ?? comparisonColor(index)}"/>
+  `).join('');
 
   return `
-    <svg class="deviation-trajectory" viewBox="0 0 ${width} ${height}" role="img" aria-label="Smoothed overlay of phone orientation movement paths around the calibrated zero position. The same angular scale is used horizontally and vertically.">
-      <defs>
-        <radialGradient id="trajectory-glow">
-          <stop offset="0%" stop-color="#5b9cff" stop-opacity=".13"/>
-          <stop offset="100%" stop-color="#5b9cff" stop-opacity="0"/>
-        </radialGradient>
-        <filter id="reference-soft-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="5"/>
-        </filter>
-      </defs>
-      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="url(#trajectory-glow)"/>
-      <g class="trajectory-grid">${rings.join('')}</g>
-      <line class="trajectory-crosshair" x1="${centerX - radius}" y1="${centerY}" x2="${centerX + radius}" y2="${centerY}"/>
-      <line class="trajectory-crosshair" x1="${centerX}" y1="${centerY - radius}" x2="${centerX}" y2="${centerY + radius}"/>
-      <g class="trajectory-axis-labels">
-        <text x="${centerX}" y="23" text-anchor="middle">FORWARD / BACK · PITCH</text>
-        <text x="${centerX}" y="346" text-anchor="middle">SIDE-TO-SIDE · ROLL</text>
-        <text x="${centerX + 7}" y="${centerY + 11}">ZERO</text>
-      </g>
+    <svg class="deviation-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metric.label} angle across normalized trial progress, comparing the reference and saved trials.">
+      <g class="trend-grid">${grid}</g>
       ${comparisonPaths}
-      <path class="reference-path reference-path-glow" d="${referencePath}" filter="url(#reference-soft-glow)"/>
-      <path class="deviation-path reference-path" d="${referencePath}"/>
-      <circle class="reference-start" cx="${firstX}" cy="${firstY}" r="5"/>
-      <circle class="reference-end" cx="${lastX}" cy="${lastY}" r="5"/>
-      <text class="trajectory-point-label" x="${firstX + 8}" y="${firstY - 8}">START</text>
-      <text class="trajectory-point-label" x="${lastX + 8}" y="${lastY - 8}">FINISH</text>
+      <path class="deviation-path reference-path" d="${pathFor(reference)}"/>
     </svg>
   `;
 }
@@ -257,9 +218,17 @@ export function renderDeviationTrend(container, trials, selectedReferenceId, onR
     }));
   const plottedComparisons = comparisons.filter(comparison => comparison.result);
   content.innerHTML = `
-    <div class="deviation-trajectory-flow"><strong>Movement map</strong><span>·</span><span>start → finish</span></div>
-    <div class="deviation-trajectory-wrap">${createTrajectorySvg(reference, plottedComparisons)}</div>
-    <p class="deviation-map-note">Each path follows a run from start to finish. Rings show angle from calibrated zero; equal scales preserve movement shape. Paths are lightly smoothed for display; scores use recorded samples.</p>
+    <div class="deviation-trend-charts">
+      <section class="deviation-axis-card">
+        <div class="deviation-axis-heading"><div><p class="eyebrow">PITCH</p><h3>Up &amp; Down</h3></div><span>Angle · degrees</span></div>
+        <div class="deviation-line-chart-wrap">${createTrendLineChart(reference, plottedComparisons, { key: 'pitch', label: 'Up and down' })}</div>
+      </section>
+      <section class="deviation-axis-card">
+        <div class="deviation-axis-heading"><div><p class="eyebrow">ROLL</p><h3>Side to Side</h3></div><span>Angle · degrees</span></div>
+        <div class="deviation-line-chart-wrap">${createTrendLineChart(reference, plottedComparisons, { key: 'roll', label: 'Side to side' })}</div>
+      </section>
+    </div>
+    <p class="deviation-map-note">Lines show angle through each run, sampled at matching percentages of trial progress. The reference is highlighted; scores use the recorded orientation samples.</p>
     <ul class="deviation-trend-legend"></ul>
     ${comparisons.length
       ? ''
