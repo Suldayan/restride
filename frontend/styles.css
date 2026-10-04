@@ -375,6 +375,7 @@ html, body { background-color: var(--bg); }
   line-height: 1.5;
 }
 .storage-error-banner { margin: 14px 0 0; }
+.save-error:empty { display: none; }
 .save-error { margin: 8px 0 0; }
 .saved-confirmation {
   padding: 15px;
