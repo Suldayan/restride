@@ -2,6 +2,7 @@ import { requestMotionPermission, startListening } from '../core/sensors.js';
 import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
 import { createAutoStopDetector } from '../core/autoStop.js';
+import { saveTrial } from '../core/trialStorage.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -53,12 +54,26 @@ export function initStart() {
     showScreen('trial');
   });
 
-  // Both the manual Stop button and the auto-detector call this one function
-  function finishRecording(reason) {
+  // Both the manual Stop button and the auto-detector call this one function —
+  // neither needs to know the other exists.
+  async function finishRecording(reason) {
     lastTrialSamples = recorder.stop();
     recordBtn.textContent = 'Start Recording';
-    recordingEl.textContent = `${lastTrialSamples.length} samples captured (${reason})`;
+    recordingEl.textContent = `${lastTrialSamples.length} samples captured (${reason}) — saving...`;
     viewChartBtn.disabled = false;
+
+    const label = prompt('Label this trial:', `Trial — ${new Date().toLocaleTimeString()}`)
+      || `Trial — ${new Date().toLocaleTimeString()}`;
+
+    await saveTrial({
+      id: Date.now().toString(),
+      label,
+      isReference: false,
+      createdAt: Date.now(),
+      samples: lastTrialSamples
+    });
+
+    recordingEl.textContent = `Saved: "${label}" (${lastTrialSamples.length} samples)`;
   }
 
   const autoStop = createAutoStopDetector(() => finishRecording('auto-stopped'));
