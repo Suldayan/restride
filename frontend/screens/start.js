@@ -53,7 +53,9 @@ function initializeCountdownAudio() {
     unlockSource.connect(countdownAudioContext.destination);
     unlockSource.start();
 
-    void resumeCountdownAudio().catch(error => {
+    void resumeCountdownAudio().then(() => {
+      console.info('Countdown audio context state:', countdownAudioContext.state);
+    }).catch(error => {
       console.warn('Could not resume countdown audio.', error);
     });
   } catch (error) {
@@ -64,30 +66,30 @@ function initializeCountdownAudio() {
 function playCountdownBeep(isGo = false) {
   if (!countdownAudioContext) return;
 
-  if (countdownAudioContext.state !== 'running') {
-    void resumeCountdownAudio().then(() => {
-      if (countdownAudioContext.state === 'running') playCountdownBeep(isGo);
-    }).catch(error => {
-      console.warn('Could not play countdown audio.', error);
-    });
-    return;
-  }
+  void resumeCountdownAudio().catch(error => {
+    console.warn('Could not resume countdown audio for beep playback.', error);
+  });
 
-  const now = countdownAudioContext.currentTime;
-  const duration = isGo ? 0.22 : 0.08;
+  const now = countdownAudioContext.currentTime + 0.01;
+  const duration = isGo ? 0.35 : 0.14;
   const oscillator = countdownAudioContext.createOscillator();
   const gain = countdownAudioContext.createGain();
 
-  oscillator.type = 'sine';
+  oscillator.type = 'triangle';
   oscillator.frequency.setValueAtTime(isGo ? 1046 : 880, now);
   gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.3, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.7, now + 0.01);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
 
   oscillator.connect(gain);
   gain.connect(countdownAudioContext.destination);
   oscillator.start(now);
   oscillator.stop(now + duration);
+  console.info(`Countdown ${isGo ? 'GO' : 'number'} beep scheduled`, {
+    state: countdownAudioContext.state,
+    frequencyHz: isGo ? 1046 : 880,
+    durationSeconds: duration
+  });
 }
 
 function formatElapsed(milliseconds) {
