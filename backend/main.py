@@ -10,7 +10,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://restridetest.netlify.app/, https://restride.netlify.app/"],
+    allow_origins=[
+        "https://restridetest.netlify.app",
+        "https://restride.netlify.app",
+    ],
     allow_methods=["POST"],
     allow_headers=["*"],
 )
