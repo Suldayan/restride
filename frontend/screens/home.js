@@ -1,4 +1,5 @@
 import { deleteTrial, getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
+import { renderDeviationTrend } from './deviationTrend.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -98,12 +99,19 @@ function renderOverview(container, trials) {
 export function initHome() {
   const overview = document.getElementById('home-overview');
   const list = document.getElementById('home-trials');
+  const deviationTrend = document.getElementById('home-deviation-trend');
   const today = document.getElementById('today-date');
   today.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
   function renderTrials() {
     const trials = getTrials();
     renderOverview(overview, trials);
+    const reference = trials.find(trial => trial.isReference);
+    renderDeviationTrend(deviationTrend, trials, reference?.id ?? '', async id => {
+      if (!id) return;
+      await setTrialReference(id);
+      document.dispatchEvent(new CustomEvent('restride:reference-changed'));
+    });
     list.replaceChildren();
 
     if (trials.length === 0) {
