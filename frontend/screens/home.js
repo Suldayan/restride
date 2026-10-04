@@ -1,47 +1,98 @@
+import { getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
+import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
-import { listTrials, setReference } from '../core/trialStorage.js';
-import { renderSavedTrial } from './trial.js';
 
-export async function initHome() {
-  await refreshList();
+function formatDate(dateString, options = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) {
+  return new Date(dateString).toLocaleString(undefined, options);
 }
 
-// Exported so other screens (e.g. after saving a new trial) can refresh this list
-export async function refreshList() {
-  const list = document.getElementById('trial-list');
-  const trials = await listTrials();
+function formatDuration(seconds) {
+  if (seconds < 0.05) return '0 sec';
+  if (seconds < 60) return `${seconds.toFixed(1)} sec`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s`;
+}
 
-  if (trials.length === 0) {
-    list.innerHTML = '<p class="dim">No trials yet — record one to get started.</p>';
-    return;
+function openTrial(trial) {
+  renderTrial(trial);
+  showScreen('trial');
+}
+
+function createTrialRow(trial) {
+  const row = document.createElement('article');
+  row.className = 'trial-row';
+  row.innerHTML = `
+    <button class="trial-row-open" type="button">
+      <span class="trial-row-icon" aria-hidden="true">↗</span>
+      <span class="trial-row-copy"><small></small><strong></strong><em></em></span>
+      <span class="trial-row-duration"></span>
+    </button>
+    <button class="reference-button" type="button"></button>
+  `;
+  row.querySelector('small').textContent = formatDate(trial.createdAt);
+  row.querySelector('strong').textContent = trial.label;
+  row.querySelector('em').textContent = trial.isReference ? 'Reference trial' : 'Completed';
+  row.querySelector('.trial-row-duration').textContent = formatDuration(getTrialDurationSeconds(trial));
+  row.querySelector('.trial-row-open').addEventListener('click', () => openTrial(trial));
+
+  const referenceButton = row.querySelector('.reference-button');
+  referenceButton.textContent = trial.isReference ? '★ Reference' : 'Set Reference';
+  referenceButton.setAttribute('aria-pressed', String(trial.isReference));
+  referenceButton.addEventListener('click', async () => {
+    referenceButton.disabled = true;
+    try {
+      await setTrialReference(trial.id);
+      document.dispatchEvent(new CustomEvent('restride:reference-changed'));
+    } catch (error) {
+      referenceButton.disabled = false;
+      referenceButton.textContent = `Could not update: ${error.message}`;
+    }
+  });
+  return row;
+}
+
+function renderOverview(container, trials) {
+  const totalDuration = trials.reduce((total, trial) => total + getTrialDurationSeconds(trial), 0);
+  const reference = trials.find(trial => trial.isReference);
+  container.innerHTML = `
+    <div class="overview-stats">
+      <article class="overview-stat"><small>TRIALS</small><strong>${trials.length}</strong><span>saved runs</span></article>
+      <article class="overview-stat"><small>TIME RECORDED</small><strong>${formatDuration(totalDuration)}</strong><span>across all runs</span></article>
+      <article class="overview-stat"><small>REFERENCE</small><strong class="reference-stat"></strong><span class="reference-subtitle"></span></article>
+    </div>
+    <section class="home-start-card">
+      <div><p class="eyebrow">${trials.length ? 'READY FOR ANOTHER RUN?' : 'READY FOR YOUR FIRST RUN?'}</p><h2>${trials.length ? 'Keep building your movement history.' : 'Your training starts with one trial.'}</h2><p>${trials.length ? 'Record a new run and compare it with your saved trials.' : 'Record a run to build your movement history and see your results.'}</p></div>
+      <button type="button" class="primary-button">Record a Trial <span aria-hidden="true">→</span></button>
+    </section>
+  `;
+
+  container.querySelector('.reference-stat').textContent = reference ? 'Set' : 'Not set';
+  container.querySelector('.reference-subtitle').textContent = reference
+    ? reference.label
+    : 'choose a trial to compare';
+  container.querySelector('.primary-button').addEventListener('click', () => showScreen('start'));
+}
+
+export function initHome() {
+  const overview = document.getElementById('home-overview');
+  const list = document.getElementById('home-trials');
+  const today = document.getElementById('today-date');
+  today.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+
+  function renderTrials() {
+    const trials = getTrials();
+    renderOverview(overview, trials);
+    list.replaceChildren();
+
+    if (trials.length === 0) {
+      list.innerHTML = '<p class="empty-list">Your next saved run will show up here.</p>';
+      return;
+    }
+    trials.slice(0, 3).forEach(trial => list.appendChild(createTrialRow(trial)));
   }
 
-  list.innerHTML = '';
-  // Newest first
-  trials.slice().reverse().forEach(trial => {
-    const card = document.createElement('div');
-    card.className = 'trial-card';
-    card.innerHTML = `
-      <div>${trial.isReference ? '⭐ ' : ''}${trial.label}</div>
-      <div class="dim">${trial.samples.length} samples</div>
-      <button class="ref-btn" data-id="${trial.id}">
-        ${trial.isReference ? 'Reference' : 'Set as Reference'}
-      </button>
-    `;
-
-    card.addEventListener('click', (e) => {
-      if (e.target.classList.contains('ref-btn')) return; // handled separately below
-      document.getElementById('trial-title').textContent = trial.label;
-      renderSavedTrial(trial.samples);
-      showScreen('trial');
-    });
-
-    card.querySelector('.ref-btn').addEventListener('click', async (e) => {
-      e.stopPropagation(); 
-      await setReference(trial.id);
-      await refreshList(); 
-    });
-
-    list.appendChild(card);
-  });
+  document.addEventListener('restride:trial-saved', renderTrials);
+  document.addEventListener('restride:reference-changed', renderTrials);
+  renderTrials();
 }
