@@ -521,15 +521,23 @@ html, body { background-color: var(--bg); }
 .deviation-trajectory-flow { margin-bottom: 5px; color: #85958a; display: flex; align-items: center; gap: 7px; font-size: 6px; font-weight: 650; letter-spacing: .1em; }
 .deviation-trajectory-flow strong { color: var(--accent-soft); }
 .deviation-trajectory-flow > span:first-of-type { color: var(--accent); font-size: 12px; }
-.deviation-trajectory-wrap { width: 100%; overflow: hidden; border: 1px solid #22352a; border-radius: 7px; background: rgba(6, 13, 9, .58); }
+.deviation-trajectory-wrap { width: 100%; overflow: hidden; border: 1px solid #22352a; border-radius: 9px; background: radial-gradient(ellipse at center, rgba(23, 46, 34, .72), rgba(7, 15, 10, .9) 72%); }
 .deviation-trajectory { width: 100%; height: auto; display: block; }
-.trajectory-grid line { stroke: rgba(164, 183, 207, .12); stroke-width: 1; stroke-dasharray: 3 5; }
-.trajectory-axis-labels { fill: #819087; font-family: inherit; font-size: 8px; }
+.trajectory-ring { fill: none; stroke: rgba(164, 183, 207, .09); stroke-width: 1; }
+.trajectory-ring.outer-ring { stroke: rgba(137, 186, 255, .19); }
+.trajectory-ring-label { fill: #76867b; font-family: inherit; font-size: 7px; }
+.trajectory-crosshair { stroke: rgba(164, 183, 207, .2); stroke-width: 1; }
+.trajectory-axis-labels { fill: #9caf9f; font-family: inherit; font-size: 8px; font-weight: 600; letter-spacing: .07em; }
+.trajectory-axis-labels text:last-child { fill: #6f8375; font-size: 6px; font-weight: 500; }
 .deviation-path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-.comparison-path { stroke-width: 2; opacity: .76; }
-.reference-path { stroke: #89baff; stroke-width: 4; opacity: .96; }
-.reference-start { fill: #d9eaff; stroke: #07111b; stroke-width: 2; }
+.comparison-path { stroke-width: 2.25; opacity: .82; }
+.comparison-endpoint { stroke: #07110c; stroke-width: 1.5; }
+.reference-path { stroke: #89baff; stroke-width: 3.5; opacity: .98; }
+.reference-path-glow { stroke-width: 12; opacity: .3; }
+.reference-start { fill: #e5f1ff; stroke: #07111b; stroke-width: 2; }
 .reference-end { fill: #89baff; stroke: #07111b; stroke-width: 2; }
+.trajectory-point-label { fill: #e1edfa; font-family: inherit; font-size: 6px; font-weight: 700; letter-spacing: .08em; paint-order: stroke; stroke: #0b1510; stroke-width: 3px; stroke-linejoin: round; }
+.deviation-map-note { margin: 6px 1px 0; color: #87958b; font-size: 6px; line-height: 1.5; }
 .deviation-trend-legend { max-height: 250px; margin: 9px 0 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; list-style: none; }
 .deviation-trend-legend li { min-width: 0; min-height: 41px; padding: 6px 7px; border: 1px solid #22352a; border-radius: 6px; background: rgba(12, 21, 16, .72); display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: center; gap: 7px; }
 .deviation-trend-legend .deviation-legend-reference { border-color: #304c6e; background: rgba(20, 36, 58, .42); }

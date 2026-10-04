@@ -68,55 +68,48 @@ function formatTrialDate(trial) {
   });
 }
 
-function formatAxis(value) {
-  return Number.isFinite(value) ? value.toFixed(1) : '0.0';
-}
-
 function createTrajectorySvg(reference, comparisons) {
   const plottedTrials = [reference, ...comparisons.map(comparison => comparison.trial)];
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
+  let maxMagnitude = 0;
   plottedTrials.forEach(trial => trial.samples.forEach(sample => {
-    minX = Math.min(minX, sample.roll);
-    maxX = Math.max(maxX, sample.roll);
-    minY = Math.min(minY, sample.pitch);
-    maxY = Math.max(maxY, sample.pitch);
+    maxMagnitude = Math.max(maxMagnitude, Math.abs(sample.roll), Math.abs(sample.pitch));
   }));
-  const xRange = Math.max(10, maxX - minX);
-  const yRange = Math.max(10, maxY - minY);
-  const bounds = {
-    left: minX - xRange * 0.08,
-    right: maxX + xRange * 0.08,
-    bottom: minY - yRange * 0.08,
-    top: maxY + yRange * 0.08
-  };
-  const width = 640;
-  const height = 300;
-  const padding = { left: 55, right: 18, top: 16, bottom: 42 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const x = value => padding.left + ((value - bounds.left) / (bounds.right - bounds.left)) * plotWidth;
-  const y = value => padding.top + ((bounds.top - value) / (bounds.top - bounds.bottom)) * plotHeight;
+  const axisLimit = Math.min(180, Math.max(10, Math.ceil(maxMagnitude / 5) * 5));
+  const width = 440;
+  const height = 360;
+  const centerX = 220;
+  const centerY = 177;
+  const radius = 148;
+  const scale = radius / axisLimit;
+  const x = value => centerX + value * scale;
+  const y = value => centerY - value * scale;
+  const gridStep = axisLimit <= 20 ? 5 : axisLimit <= 60 ? 10 : 30;
 
   function pathFor(trial) {
-    return Array.from({ length: COMPARISON_SAMPLE_COUNT }, (_, index) => {
+    const points = Array.from({ length: COMPARISON_SAMPLE_COUNT }, (_, index) => {
       const sample = sampleAtProgress(trial, index / (COMPARISON_SAMPLE_COUNT - 1));
-      return `${index ? 'L' : 'M'}${x(sample.roll).toFixed(1)},${y(sample.pitch).toFixed(1)}`;
-    }).join(' ');
+      return { x: x(sample.roll), y: y(sample.pitch) };
+    });
+    const smoothedPoints = points.map((point, index) => {
+      const window = points.slice(Math.max(0, index - 2), Math.min(points.length, index + 3));
+      return {
+        x: window.reduce((total, item) => total + item.x, 0) / window.length,
+        y: window.reduce((total, item) => total + item.y, 0) / window.length
+      };
+    });
+    smoothedPoints[0] = points[0];
+    smoothedPoints[smoothedPoints.length - 1] = points.at(-1);
+    return smoothedPoints.map((point, index) =>
+      `${index ? 'L' : 'M'}${point.x.toFixed(1)},${point.y.toFixed(1)}`
+    ).join(' ');
   }
 
-  const xMid = (minX + maxX) / 2;
-  const yMid = (minY + maxY) / 2;
-  const gridLines = [
-    `<line x1="${padding.left}" y1="${y(minY)}" x2="${width - padding.right}" y2="${y(minY)}"/>`,
-    `<line x1="${padding.left}" y1="${y(yMid)}" x2="${width - padding.right}" y2="${y(yMid)}"/>`,
-    `<line x1="${padding.left}" y1="${y(maxY)}" x2="${width - padding.right}" y2="${y(maxY)}"/>`,
-    `<line x1="${x(minX)}" y1="${padding.top}" x2="${x(minX)}" y2="${height - padding.bottom}"/>`,
-    `<line x1="${x(xMid)}" y1="${padding.top}" x2="${x(xMid)}" y2="${height - padding.bottom}"/>`,
-    `<line x1="${x(maxX)}" y1="${padding.top}" x2="${x(maxX)}" y2="${height - padding.bottom}"/>`
-  ].join('');
+  const rings = [];
+  for (let value = gridStep; value <= axisLimit; value += gridStep) {
+    const gridRadius = value * scale;
+    rings.push(`<circle class="trajectory-ring${value === axisLimit ? ' outer-ring' : ''}" cx="${centerX}" cy="${centerY}" r="${gridRadius.toFixed(1)}"/>`);
+    rings.push(`<text class="trajectory-ring-label" x="${centerX + 4}" y="${(centerY - gridRadius + 10).toFixed(1)}">${value}°</text>`);
+  }
 
   const comparisonPaths = comparisons.map(({ trial, color }, index) => {
     const trialColor = color ?? comparisonColor(index);
@@ -124,30 +117,45 @@ function createTrajectorySvg(reference, comparisons) {
     const end = sampleAtProgress(trial, 1);
     return `
       <path class="deviation-path comparison-path" d="${pathFor(trial)}" stroke="${trialColor}"/>
-      <circle class="comparison-endpoint" cx="${x(start.roll)}" cy="${y(start.pitch)}" r="2.5" fill="${trialColor}"/>
-      <circle class="comparison-endpoint" cx="${x(end.roll)}" cy="${y(end.pitch)}" r="2.5" fill="${trialColor}"/>
+      <circle class="comparison-endpoint" cx="${x(start.roll)}" cy="${y(start.pitch)}" r="3" fill="${trialColor}"/>
+      <circle class="comparison-endpoint" cx="${x(end.roll)}" cy="${y(end.pitch)}" r="3" fill="${trialColor}"/>
     `;
   }).join('');
   const referencePath = pathFor(reference);
   const firstReferencePoint = sampleAtProgress(reference, 0);
   const lastReferencePoint = sampleAtProgress(reference, 1);
+  const firstX = x(firstReferencePoint.roll);
+  const firstY = y(firstReferencePoint.pitch);
+  const lastX = x(lastReferencePoint.roll);
+  const lastY = y(lastReferencePoint.pitch);
 
   return `
-    <svg class="deviation-trajectory" viewBox="0 0 ${width} ${height}" role="img" aria-label="Overlay of phone orientation movement paths. Horizontal is side-to-side tilt, vertical is forward and back tilt.">
-      <g class="trajectory-grid">${gridLines}</g>
+    <svg class="deviation-trajectory" viewBox="0 0 ${width} ${height}" role="img" aria-label="Smoothed overlay of phone orientation movement paths around the calibrated zero position. The same angular scale is used horizontally and vertically.">
+      <defs>
+        <radialGradient id="trajectory-glow">
+          <stop offset="0%" stop-color="#5b9cff" stop-opacity=".13"/>
+          <stop offset="100%" stop-color="#5b9cff" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="reference-soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="5"/>
+        </filter>
+      </defs>
+      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="url(#trajectory-glow)"/>
+      <g class="trajectory-grid">${rings.join('')}</g>
+      <line class="trajectory-crosshair" x1="${centerX - radius}" y1="${centerY}" x2="${centerX + radius}" y2="${centerY}"/>
+      <line class="trajectory-crosshair" x1="${centerX}" y1="${centerY - radius}" x2="${centerX}" y2="${centerY + radius}"/>
       <g class="trajectory-axis-labels">
-        <text x="${padding.left}" y="${height - 25}">${formatAxis(minX)}°</text>
-        <text x="${x(xMid)}" y="${height - 25}" text-anchor="middle">${formatAxis(xMid)}°</text>
-        <text x="${width - padding.right}" y="${height - 25}" text-anchor="end">${formatAxis(maxX)}°</text>
-        <text x="${padding.left - 8}" y="${y(maxY) + 3}" text-anchor="end">${formatAxis(maxY)}°</text>
-        <text x="${padding.left - 8}" y="${y(minY) + 3}" text-anchor="end">${formatAxis(minY)}°</text>
-        <text x="${width / 2}" y="${height - 6}" text-anchor="middle">SIDE-TO-SIDE · ROLL</text>
-        <text x="12" y="${height / 2}" text-anchor="middle" transform="rotate(-90 12 ${height / 2})">FORWARD / BACK · PITCH</text>
+        <text x="${centerX}" y="23" text-anchor="middle">FORWARD / BACK · PITCH</text>
+        <text x="${centerX}" y="346" text-anchor="middle">SIDE-TO-SIDE · ROLL</text>
+        <text x="${centerX + 7}" y="${centerY + 11}">ZERO</text>
       </g>
       ${comparisonPaths}
+      <path class="reference-path reference-path-glow" d="${referencePath}" filter="url(#reference-soft-glow)"/>
       <path class="deviation-path reference-path" d="${referencePath}"/>
-      <circle class="reference-start" cx="${x(firstReferencePoint.roll)}" cy="${y(firstReferencePoint.pitch)}" r="4"/>
-      <circle class="reference-end" cx="${x(lastReferencePoint.roll)}" cy="${y(lastReferencePoint.pitch)}" r="4"/>
+      <circle class="reference-start" cx="${firstX}" cy="${firstY}" r="5"/>
+      <circle class="reference-end" cx="${lastX}" cy="${lastY}" r="5"/>
+      <text class="trajectory-point-label" x="${firstX + 8}" y="${firstY - 8}">START</text>
+      <text class="trajectory-point-label" x="${lastX + 8}" y="${lastY - 8}">FINISH</text>
     </svg>
   `;
 }
@@ -249,8 +257,9 @@ export function renderDeviationTrend(container, trials, selectedReferenceId, onR
     }));
   const plottedComparisons = comparisons.filter(comparison => comparison.result);
   content.innerHTML = `
-    <div class="deviation-trajectory-flow" aria-hidden="true"><strong>REFERENCE</strong><span>→</span><span>COMPARE SAVED RUNS</span></div>
+    <div class="deviation-trajectory-flow"><strong>Movement map</strong><span>·</span><span>start → finish</span></div>
     <div class="deviation-trajectory-wrap">${createTrajectorySvg(reference, plottedComparisons)}</div>
+    <p class="deviation-map-note">Each path follows a run from start to finish. Rings show angle from calibrated zero; equal scales preserve movement shape. Paths are lightly smoothed for display; scores use recorded samples.</p>
     <ul class="deviation-trend-legend"></ul>
     ${comparisons.length
       ? ''
