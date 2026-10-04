@@ -1,5 +1,5 @@
 import { showScreen } from '../app.js';
-import { listTrials, setReference } from '../core/storage.js';
+import { listTrials, setReference } from '../core/trialStorage.js';
 import { renderSavedTrial } from './trial.js';
 
 export async function initHome() {
