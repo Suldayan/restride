@@ -280,16 +280,51 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-soft
 .metrics-section > .section-heading { margin-bottom: 9px; }
 .metrics-section > .section-heading h2 { margin-top: 5px; }
 .metrics-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
-.metric-chart-card { min-width: 0; padding: 12px 11px 9px; border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(145deg, #122018, #0d1710); }
+.metric-chart-card { min-width: 0; padding: 12px 11px 9px; border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(145deg, #122018, #0d1710); cursor: pointer; transition: border-color .18s ease, transform .18s ease, background .18s ease; }
+.metric-chart-card:hover, .metric-chart-card:focus-visible { border-color: #5b9cff; background: linear-gradient(145deg, #142b27, #0d1710); transform: translateY(-1px); }
+.metric-chart-card:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 .metric-chart-heading { min-height: 20px; display: flex; align-items: center; justify-content: space-between; gap: 7px; }
 .metric-chart-heading h3 { min-width: 0; margin: 0; color: #e8f0e9; font-size: 10px; font-weight: 570; letter-spacing: -.01em; }
 .metric-chart-value { flex: 0 0 auto; color: var(--accent-soft); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .metric-chart-wrap { position: relative; width: 100%; height: 116px; margin-top: 5px; }
 .metric-chart-wrap canvas { display: block; width: 100% !important; height: 100% !important; }
-.metric-chart-foot { display: block; margin-top: 2px; color: #829389; font-size: 7px; }
+.metric-chart-footer { min-height: 17px; margin-top: 3px; display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.metric-chart-foot { display: block; margin-right: auto; color: #829389; font-size: 7px; }
+.chart-legend-item { display: inline-flex; align-items: center; gap: 4px; color: #a8b9ae; font-size: 7px; white-space: nowrap; }
+.chart-legend-item i { width: 12px; height: 2px; border-radius: 2px; background: #5b9cff; }
+.reference-legend { color: #d8ffad; }
+.reference-legend i { height: 3px; background: repeating-linear-gradient(90deg, #c4ff70 0 4px, transparent 4px 6px); }
 .acceleration-section { margin-top: 24px; }
 .acceleration-section .metric-chart-card { background: linear-gradient(145deg, #101d16, #0b1510); }
 .acceleration-section .metric-chart-wrap { height: 108px; }
+.chart-detail-dialog {
+  width: min(520px, calc(100vw - 28px));
+  max-width: none;
+  max-height: min(88vh, 780px);
+  padding: 16px;
+  overflow-y: auto;
+  border: 1px solid #365842;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #122018, #0a130e 72%);
+  color: var(--text);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, .65);
+}
+.chart-detail-dialog::backdrop { background: rgba(2, 7, 4, .78); backdrop-filter: blur(4px); }
+.chart-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.chart-detail-heading h2 { margin: 5px 0 0; font-size: 19px; letter-spacing: -.035em; }
+.chart-detail-close { width: 32px; height: 32px; padding: 0; border: 1px solid #35503f; border-radius: 50%; background: #102018; color: #d8e6dc; font-size: 22px; line-height: 1; cursor: pointer; }
+.chart-detail-description { margin: 8px 0 5px; color: #a6b7aa; font-size: 9px; line-height: 1.55; }
+.chart-detail-trial { margin: 0; color: #7f9586; font-size: 8px; }
+.chart-detail-reference { margin: 8px 0 0; color: #c4ff70; font-size: 8px; line-height: 1.5; }
+.chart-detail-legend { margin-top: 11px; display: flex; gap: 12px; }
+.chart-detail-legend .chart-legend-item { font-size: 8px; }
+.chart-detail-chart-wrap { position: relative; width: 100%; height: min(37vh, 300px); min-height: 190px; margin-top: 5px; }
+.chart-detail-chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.chart-detail-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.chart-detail-stats article { min-width: 0; padding: 10px; border: 1px solid #26392d; border-radius: 8px; background: rgba(14, 25, 18, .8); display: flex; flex-direction: column; gap: 4px; }
+.chart-detail-stats small { color: #829389; font-size: 6px; font-weight: 650; letter-spacing: .1em; }
+.chart-detail-stats strong { color: #e9f2eb; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chart-detail-stats span { color: #899d8f; font-size: 7px; }
 
 /* The app palette uses blue accents against a deep green surface. */
 html, body { background-color: var(--bg); }
