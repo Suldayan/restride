@@ -1,4 +1,4 @@
-import { getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
+import { deleteTrial, getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
 
 let chartInstances = [];
 
@@ -214,16 +214,19 @@ function renderChartCards(trial, referenceTrial, details) {
   dialog.querySelector('.chart-detail-close').addEventListener('click', () => dialog.close());
 }
 
-function createHistoryRow(trial, selectedTrial) {
+function createHistoryRow(trial, selectedTrialId) {
   const row = document.createElement('article');
-  row.className = `history-row${selectedTrial ? ' current-trial' : ''}`;
+  row.className = `history-row${selectedTrialId === trial.id ? ' current-trial' : ''}`;
   row.innerHTML = `
     <button type="button" class="history-open">
       <span class="history-icon" aria-hidden="true">↗</span>
       <span class="history-copy"><small></small><strong></strong><em></em></span>
       <span class="history-time"></span>
     </button>
-    <button type="button" class="reference-button" aria-label="Set as reference trial"></button>
+    <div class="trial-row-actions">
+      <button type="button" class="reference-button" aria-label="Set as reference trial"></button>
+      <button type="button" class="delete-trial-button">Delete</button>
+    </div>
   `;
   row.querySelector('small').textContent = formatDate(trial.createdAt);
   row.querySelector('strong').textContent = trial.label;
@@ -242,6 +245,21 @@ function createHistoryRow(trial, selectedTrial) {
     } catch (error) {
       referenceButton.disabled = false;
       referenceButton.textContent = `Could not update: ${error.message}`;
+    }
+  });
+  const deleteButton = row.querySelector('.delete-trial-button');
+  deleteButton.setAttribute('aria-label', `Delete trial ${trial.label}`);
+  deleteButton.addEventListener('click', async () => {
+    if (!window.confirm(`Delete "${trial.label}"? This cannot be undone.`)) return;
+    deleteButton.disabled = true;
+    try {
+      await deleteTrial(trial.id);
+      document.dispatchEvent(new CustomEvent('restride:trial-deleted', { detail: { id: trial.id } }));
+      renderTrial(getTrials().find(savedTrial => savedTrial.id === selectedTrialId) ?? getTrials()[0] ?? null);
+    } catch (error) {
+      deleteButton.disabled = false;
+      deleteButton.textContent = 'Could not delete';
+      deleteButton.title = error.message;
     }
   });
   return row;
@@ -350,7 +368,7 @@ export function renderTrial(trial, { isDraft = false } = {}) {
   if (savedTrials.length === 0) {
     history.innerHTML = '<p class="empty-list">No previous trials yet.</p>';
   } else {
-    savedTrials.forEach(savedTrial => history.appendChild(createHistoryRow(savedTrial, savedTrial.id === trial.id)));
+    savedTrials.forEach(savedTrial => history.appendChild(createHistoryRow(savedTrial, trial.id)));
   }
   if (trial.samples.length > 0) renderChartCards(trial, referenceTrial, details);
 }

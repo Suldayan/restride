@@ -1,4 +1,4 @@
-import { listTrials, saveTrial, setReference } from './trialStorage.js';
+import { deleteTrial as deleteStoredTrial, listTrials, saveTrial, setReference } from './trialStorage.js';
 
 const trials = [];
 
@@ -74,6 +74,13 @@ export async function setTrialReference(id) {
   await setReference(id);
   for (const trial of trials) trial.isReference = trial.id === id;
   return getTrials();
+}
+
+export async function deleteTrial(id) {
+  await deleteStoredTrial(id);
+  const index = trials.findIndex(trial => trial.id === id);
+  if (index !== -1) trials.splice(index, 1);
+  return index !== -1;
 }
 
 /** @returns {Trial[]} */
