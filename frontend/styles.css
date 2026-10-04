@@ -506,6 +506,43 @@ html, body { background-color: var(--bg); }
 .home-history .trial-row-open:hover .trial-row-copy strong { color: var(--accent-soft); }
 .home-history .trial-row-duration { font-size: 8px; }
 .home-history .reference-button { min-height: 28px; padding: 0 6px; font-size: 6px; }
+.deviation-trend-card { margin-top: 18px; padding: 14px; border: 1px solid #263e32; border-radius: 10px; background: radial-gradient(ellipse at 100% 0%, rgba(91, 156, 255, .1), transparent 55%), linear-gradient(145deg, #122018, var(--panel) 68%); }
+.deviation-trend-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.deviation-trend-heading h2 { margin: 5px 0 0; font-size: 17px; letter-spacing: -.035em; }
+.deviation-trend-icon { width: 29px; height: 29px; border: 1px solid #304c6e; border-radius: 50%; color: var(--accent-soft); display: grid; place-items: center; font-size: 14px; }
+.deviation-trend-description { margin: 7px 0 12px; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.deviation-reference-field { display: flex; align-items: center; gap: 10px; color: #c6ccc7; font-size: 8px; }
+.deviation-reference-field span { flex: 0 0 auto; font-weight: 600; }
+.deviation-reference-field select { width: 100%; min-width: 0; min-height: 34px; padding: 0 9px; border: 1px solid #304c6e; border-radius: 6px; background: #0c1510; color: var(--text); font: inherit; }
+.deviation-reference-field select:disabled { color: #8a918b; }
+.deviation-score-note { margin: 8px 0 11px; color: #89958c; font-size: 7px; line-height: 1.5; }
+.deviation-trend-error { margin: 8px 0; color: #ffb0a0; font-size: 8px; }
+.deviation-trend-content { min-width: 0; }
+.deviation-trajectory-flow { margin-bottom: 5px; color: #85958a; display: flex; align-items: center; gap: 7px; font-size: 6px; font-weight: 650; letter-spacing: .1em; }
+.deviation-trajectory-flow strong { color: var(--accent-soft); }
+.deviation-trajectory-flow > span:first-of-type { color: var(--accent); font-size: 12px; }
+.deviation-trajectory-wrap { width: 100%; overflow: hidden; border: 1px solid #22352a; border-radius: 7px; background: rgba(6, 13, 9, .58); }
+.deviation-trajectory { width: 100%; height: auto; display: block; }
+.trajectory-grid line { stroke: rgba(164, 183, 207, .12); stroke-width: 1; stroke-dasharray: 3 5; }
+.trajectory-axis-labels { fill: #819087; font-family: inherit; font-size: 8px; }
+.deviation-path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.comparison-path { stroke-width: 2; opacity: .76; }
+.reference-path { stroke: #89baff; stroke-width: 4; opacity: .96; }
+.reference-start { fill: #d9eaff; stroke: #07111b; stroke-width: 2; }
+.reference-end { fill: #89baff; stroke: #07111b; stroke-width: 2; }
+.deviation-trend-legend { max-height: 250px; margin: 9px 0 0; padding: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; list-style: none; }
+.deviation-trend-legend li { min-width: 0; min-height: 41px; padding: 6px 7px; border: 1px solid #22352a; border-radius: 6px; background: rgba(12, 21, 16, .72); display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+.deviation-trend-legend .deviation-legend-reference { border-color: #304c6e; background: rgba(20, 36, 58, .42); }
+.deviation-legend-swatch { width: 8px; height: 24px; border-radius: 5px; background: var(--accent); }
+.deviation-legend-reference .deviation-legend-swatch { background: #89baff; box-shadow: 0 0 9px rgba(137, 186, 255, .32); }
+.deviation-legend-swatch[style] { background: var(--trial-color); }
+.deviation-legend-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.deviation-legend-copy strong { overflow: hidden; color: #e6eee8; font-size: 8px; font-weight: 580; text-overflow: ellipsis; white-space: nowrap; }
+.deviation-legend-copy small { overflow: hidden; color: #87958b; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.deviation-legend-score { color: #dce6de; font-size: 9px; font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.deviation-legend-reference .deviation-legend-score { color: var(--accent-soft); font-size: 6px; letter-spacing: .07em; }
+.deviation-legend-score small { color: #89958c; font-size: 6px; font-weight: 450; }
+.deviation-trend-empty { margin: 0; padding: 13px 10px; border: 1px dashed #304239; border-radius: 7px; color: #89958c; font-size: 8px; line-height: 1.5; text-align: center; }
 .trial-row-actions { display: flex; align-items: center; gap: 5px; }
 .delete-trial-button {
   min-height: 29px;
