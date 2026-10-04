@@ -2,7 +2,8 @@ import { requestMotionPermission, startListening } from '../core/sensors.js';
 import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
 import { createAutoStopDetector } from '../core/autoStop.js';
-import { saveTrial } from '../core/trialStorage.js';
+import { saveTrial, listTrials } from '../core/trialStorage.js';
+import { createDeviationTracker } from '../core/deviation.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -27,6 +28,11 @@ export function initStart() {
     <div class="dim" id="recording-readout" style="text-align:right;">not recording</div>
 
     <div class="trial-card">
+      <strong>Live vs. Reference</strong>
+      <div id="deviation-readout" class="dim">no reference selected</div>
+    </div>
+
+    <div class="trial-card">
       <strong>Orientation (&deg; from calibration)</strong>
       <div>Pitch: <span id="val-pitch">--</span></div>
       <div>Roll: <span id="val-roll">--</span></div>
@@ -47,6 +53,10 @@ export function initStart() {
   const recordBtn = document.getElementById('record-btn');
   const viewChartBtn = document.getElementById('view-chart-btn');
   const hzEl = document.getElementById('hz-readout');
+  const deviationEl = document.getElementById('deviation-readout');
+
+  let deviationTracker = null;
+  let recordStartPerf = 0;
 
   viewChartBtn.addEventListener('click', () => {
     document.getElementById('trial-title').textContent = 'Latest Recording';
@@ -54,8 +64,7 @@ export function initStart() {
     showScreen('trial');
   });
 
-  // Both the manual Stop button and the auto-detector call this one function —
-  // neither needs to know the other exists.
+  // Both the manual Stop button and the auto-detector call this one function
   async function finishRecording(reason) {
     lastTrialSamples = recorder.stop();
     recordBtn.textContent = 'Start Recording';
@@ -116,6 +125,14 @@ export function initStart() {
 
         // Recorder decides for itself whether this counts — safe to call always
         recorder.addSample({ pitch: latestRelative.pitch, roll: latestRelative.roll, yaw: latestRelative.yaw, accel: latestAccel });
+
+        if (recorder.isRecording && deviationTracker) {
+          const elapsedMs = performance.now() - recordStartPerf;
+          const result = deviationTracker.check(elapsedMs, latestRelative);
+          deviationEl.textContent = result.isDeviating
+            ? `⚠ Drifting (${result.deviationScore.toFixed(1)}°)`
+            : `On pace (${result.deviationScore.toFixed(1)}°)`;
+        }
       },
       (motion) => {
         latestAccel = motion.accel;
@@ -140,8 +157,20 @@ export function initStart() {
     recordBtn.disabled = false;
   });
 
-  recordBtn.addEventListener('click', () => {
+  recordBtn.addEventListener('click', async () => {
     if (!recorder.isRecording) {
+      const trials = await listTrials();
+      const reference = trials.find(t => t.isReference);
+
+      if (reference) {
+        deviationTracker = createDeviationTracker(reference.samples);
+        deviationEl.textContent = `Comparing against "${reference.label}"`;
+      } else {
+        deviationTracker = null;
+        deviationEl.textContent = 'no reference selected — recording without comparison';
+      }
+
+      recordStartPerf = performance.now();
       recorder.start();
       autoStop.arm();
       recordBtn.textContent = 'Stop Recording';

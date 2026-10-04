@@ -37,9 +37,9 @@ export async function refreshList() {
     });
 
     card.querySelector('.ref-btn').addEventListener('click', async (e) => {
-      e.stopPropagation(); // don't also trigger the card's own click
+      e.stopPropagation(); 
       await setReference(trial.id);
-      await refreshList(); // re-render so the star/label updates
+      await refreshList(); 
     });
 
     list.appendChild(card);
