@@ -22,6 +22,73 @@ let elapsedTimer = null;
 let recordingCreatedAt = null;
 let draftSamples = null;
 let draftSavedTrialId = null;
+let countdownAudioContext = null;
+let countdownAudioResume = null;
+
+function resumeCountdownAudio() {
+  if (!countdownAudioContext || countdownAudioContext.state === 'running') {
+    return Promise.resolve();
+  }
+
+  if (!countdownAudioResume) {
+    countdownAudioResume = countdownAudioContext.resume().finally(() => {
+      countdownAudioResume = null;
+    });
+  }
+  return countdownAudioResume;
+}
+
+function initializeCountdownAudio() {
+  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) {
+    console.warn('Countdown audio is not supported by this browser.');
+    return;
+  }
+
+  try {
+    countdownAudioContext ??= new AudioContextConstructor();
+    const unlockBuffer = countdownAudioContext.createBuffer(1, 1, 22050);
+    const unlockSource = countdownAudioContext.createBufferSource();
+    unlockSource.buffer = unlockBuffer;
+    unlockSource.connect(countdownAudioContext.destination);
+    unlockSource.start();
+
+    void resumeCountdownAudio().catch(error => {
+      console.warn('Could not resume countdown audio.', error);
+    });
+  } catch (error) {
+    console.warn('Could not initialize countdown audio.', error);
+  }
+}
+
+function playCountdownBeep(isGo = false) {
+  if (!countdownAudioContext) return;
+
+  if (countdownAudioContext.state !== 'running') {
+    void resumeCountdownAudio().then(() => {
+      if (countdownAudioContext.state === 'running') playCountdownBeep(isGo);
+    }).catch(error => {
+      console.warn('Could not play countdown audio.', error);
+    });
+    return;
+  }
+
+  const now = countdownAudioContext.currentTime;
+  const duration = isGo ? 0.22 : 0.08;
+  const oscillator = countdownAudioContext.createOscillator();
+  const gain = countdownAudioContext.createGain();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.setValueAtTime(isGo ? 1046 : 880, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.3, now + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  oscillator.connect(gain);
+  gain.connect(countdownAudioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + duration);
+}
 
 function formatElapsed(milliseconds) {
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -201,6 +268,7 @@ export function initStart() {
   }
 
   function beginCountdown() {
+    initializeCountdownAudio();
     let remaining = countdownSeconds;
     startButton.disabled = true;
     runState.innerHTML = `
@@ -210,6 +278,7 @@ export function initStart() {
         <button type="button" class="cancel-button" id="cancel-countdown">Cancel</button>
       </div>
     `;
+    if (remaining === 3) playCountdownBeep();
     const progress = runState.querySelector('.countdown-track i');
     window.requestAnimationFrame(() => {
       progress.style.transitionDuration = `${countdownSeconds}s`;
@@ -225,9 +294,11 @@ export function initStart() {
       remaining -= 1;
       const number = document.getElementById('countdown-number');
       if (number) number.textContent = remaining;
+      if (remaining === 3 || remaining === 2 || remaining === 1) playCountdownBeep();
       if (remaining <= 0) {
         window.clearInterval(countdownTimer);
         countdownTimer = null;
+        playCountdownBeep(true);
         startRecording();
       }
     }, 1000);
