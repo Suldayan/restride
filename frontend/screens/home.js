@@ -1,4 +1,4 @@
-import { getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
+import { deleteTrial, getTrials, getTrialDurationSeconds, setTrialReference } from '../core/trials.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -28,7 +28,10 @@ function createTrialRow(trial) {
       <span class="trial-row-copy"><small></small><strong></strong><em></em></span>
       <span class="trial-row-duration"></span>
     </button>
-    <button class="reference-button" type="button"></button>
+    <div class="trial-row-actions">
+      <button class="reference-button" type="button"></button>
+      <button class="delete-trial-button" type="button">Delete</button>
+    </div>
   `;
   row.querySelector('small').textContent = formatDate(trial.createdAt);
   row.querySelector('strong').textContent = trial.label;
@@ -47,6 +50,21 @@ function createTrialRow(trial) {
     } catch (error) {
       referenceButton.disabled = false;
       referenceButton.textContent = `Could not update: ${error.message}`;
+    }
+  });
+
+  const deleteButton = row.querySelector('.delete-trial-button');
+  deleteButton.setAttribute('aria-label', `Delete trial ${trial.label}`);
+  deleteButton.addEventListener('click', async () => {
+    if (!window.confirm(`Delete "${trial.label}"? This cannot be undone.`)) return;
+    deleteButton.disabled = true;
+    try {
+      await deleteTrial(trial.id);
+      document.dispatchEvent(new CustomEvent('restride:trial-deleted', { detail: { id: trial.id } }));
+    } catch (error) {
+      deleteButton.disabled = false;
+      deleteButton.textContent = 'Could not delete';
+      deleteButton.title = error.message;
     }
   });
   return row;
@@ -97,5 +115,6 @@ export function initHome() {
 
   document.addEventListener('restride:trial-saved', renderTrials);
   document.addEventListener('restride:reference-changed', renderTrials);
+  document.addEventListener('restride:trial-deleted', renderTrials);
   renderTrials();
 }

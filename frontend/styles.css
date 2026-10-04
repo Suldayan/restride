@@ -498,6 +498,21 @@ html, body { background-color: var(--bg); }
 .home-history .trial-row-open:hover .trial-row-copy strong { color: var(--accent-soft); }
 .home-history .trial-row-duration { font-size: 8px; }
 .home-history .reference-button { min-height: 28px; padding: 0 6px; font-size: 6px; }
+.trial-row-actions { display: flex; align-items: center; gap: 5px; }
+.delete-trial-button {
+  min-height: 29px;
+  padding: 0 7px;
+  border: 1px solid #493a35;
+  border-radius: 6px;
+  background: #1b1715;
+  color: #d2aaa0;
+  font-size: 7px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.delete-trial-button:hover { border-color: #9b5a4c; color: #ffd0c4; }
+.delete-trial-button:disabled { cursor: wait; opacity: .6; }
+.home-history .delete-trial-button { min-height: 28px; padding: 0 6px; font-size: 6px; }
 .trial-empty-state {
   margin: 0 0 17px;
   padding: 17px;
