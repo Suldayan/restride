@@ -3,6 +3,7 @@ import { createCalibrator } from '../core/calibration.js';
 import { createRecorder } from '../core/recorder.js';
 import { createAutoStopDetector } from '../core/autoStop.js';
 import { addTrial, createTrial, getTrials, setTrialReference } from '../core/trials.js';
+import { processTrial } from '../core/api.js';
 import { renderTrial } from './trial.js';
 import { showScreen } from '../app.js';
 
@@ -125,6 +126,9 @@ export function initStart() {
             samples: draftSamples
           }));
           draftSavedTrialId = savedTrial.id;
+          void processTrial(savedTrial).catch(error => {
+            console.error('Could not process the saved trial with the backend.', error);
+          });
           document.dispatchEvent(new CustomEvent('restride:trial-saved', { detail: savedTrial }));
         }
         if (document.getElementById('reference-trial').checked) {
