@@ -1,20 +1,43 @@
 import { initHome } from './screens/home.js';
-import { initTrial } from './screens/trial.js';
+import { initTrial, renderLatestTrial } from './screens/trial.js';
 import { initStart } from './screens/start.js';
+import { hydrateTrials } from './core/trials.js';
 
-// This is the entire "navigation system." No router library, no URLs to manage.
 export function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('.screen').forEach(screen => {
+    screen.classList.toggle('active', screen.id === `screen-${name}`);
+  });
+  document.querySelectorAll('.nav-item').forEach(button => {
+    const isActive = button.dataset.screenLink === name;
+    button.classList.toggle('active', isActive);
+    if (isActive) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-// Wire up the back buttons here since they're the same on every screen
-document.getElementById('trial-back-btn').addEventListener('click', () => showScreen('home'));
-document.getElementById('start-back-btn').addEventListener('click', () => showScreen('home'));
-document.getElementById('new-trial-btn').addEventListener('click', () => showScreen('start'));
+document.querySelectorAll('[data-screen-link]').forEach(button => {
+  button.addEventListener('click', () => {
+    if (button.dataset.screenLink === 'trial') renderLatestTrial();
+    showScreen(button.dataset.screenLink);
+  });
+});
 
-// Each screen's own file handles its own setup logic (populating lists,
-// attaching its own buttons, etc.) — app.js just kicks that off once.
+let storageError = null;
+try {
+  await hydrateTrials();
+} catch (error) {
+  storageError = error;
+}
+
 initHome();
 initTrial();
 initStart();
+
+if (storageError) {
+  const banner = document.createElement('p');
+  banner.className = 'storage-error-banner';
+  banner.setAttribute('role', 'alert');
+  banner.textContent = `Saved trials could not be loaded: ${storageError.message}`;
+  document.querySelector('.app-main').prepend(banner);
+}
