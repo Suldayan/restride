@@ -132,6 +132,14 @@ export function initStart() {
         <button class="secondary-button" id="enable-btn" type="button"><span>Enable Motion</span><b>01</b></button>
         <button class="secondary-button" id="calibrate-btn" type="button" disabled><span>Calibrate Zero</span><b>02</b></button>
       </div>
+      <section class="angle-readout" aria-label="Live phone angles">
+        <div class="angle-readout-heading"><strong>Live Phone Angles</strong><small id="angle-readout-mode">Enable motion to view angles</small></div>
+        <div class="angle-readout-values" aria-live="off">
+          <div><small>FORWARD / BACK</small><strong><span id="angle-pitch">--</span>°</strong></div>
+          <div><small>SIDE TO SIDE</small><strong><span id="angle-roll">--</span>°</strong></div>
+          <div><small>TURNING</small><strong><span id="angle-yaw">--</span>°</strong></div>
+        </div>
+      </section>
       <div class="delay-setting">
         <div><strong>Start Delay</strong><small>Countdown before the run timer starts</small></div>
         <div class="delay-adjust">
@@ -159,6 +167,22 @@ export function initStart() {
   const calibrateButton = document.getElementById('calibrate-btn');
   const startButton = document.getElementById('start-run-btn');
   const runState = document.getElementById('run-state');
+
+  function updateAngleReadout() {
+    const angles = calibrator.isCalibrated
+      ? latestRelative
+      : {
+        pitch: latestOrientation.beta,
+        roll: latestOrientation.gamma,
+        yaw: latestOrientation.alpha
+      };
+    document.getElementById('angle-pitch').textContent = angles.pitch.toFixed(1);
+    document.getElementById('angle-roll').textContent = angles.roll.toFixed(1);
+    document.getElementById('angle-yaw').textContent = angles.yaw.toFixed(1);
+    document.getElementById('angle-readout-mode').textContent = calibrator.isCalibrated
+      ? 'Relative to calibrated zero'
+      : 'Current phone angle · calibrate to set zero';
+  }
 
   function updateDelay(value) {
     countdownSeconds = Math.max(1, Math.min(15, value));
@@ -401,6 +425,7 @@ export function initStart() {
           latestRelative = calibrator.isCalibrated
             ? calibrator.getRelative(orientation)
             : { pitch: 0, roll: 0, yaw: 0 };
+          updateAngleReadout();
           recorder.addSample({
             pitch: latestRelative.pitch,
             roll: latestRelative.roll,
@@ -434,6 +459,7 @@ export function initStart() {
   calibrateButton.addEventListener('click', () => {
     calibrator.calibrate(latestOrientation);
     latestRelative = { pitch: 0, roll: 0, yaw: 0 };
+    updateAngleReadout();
     status.textContent = 'Calibrated. Choose your delay and start the trial.';
     startButton.disabled = false;
   });

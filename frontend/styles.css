@@ -169,6 +169,14 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent-soft
 .secondary-button b { color: #83878b; font-size: 8px; font-weight: 500; }
 .secondary-button:disabled { color: #696d71; cursor: not-allowed; opacity: .66; }
 .secondary-button:disabled b { color: #65696d; }
+.angle-readout { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 7px; background: #101a13; }
+.angle-readout-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.angle-readout-heading strong { color: #dce6de; font-size: 8px; font-weight: 600; }
+.angle-readout-heading small { color: #89958c; font-size: 7px; text-align: right; }
+.angle-readout-values { margin-top: 9px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.angle-readout-values > div { min-width: 0; padding: 7px; border-radius: 5px; background: #0c1510; display: flex; flex-direction: column; gap: 5px; }
+.angle-readout-values small { overflow: hidden; color: #89958c; font-size: 6px; letter-spacing: .04em; text-overflow: ellipsis; white-space: nowrap; }
+.angle-readout-values strong { color: var(--accent-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
 .delay-setting { margin-top: 14px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .delay-setting > div:first-child { display: flex; flex-direction: column; gap: 4px; }
 .delay-setting > div:first-child strong { font-size: 10px; font-weight: 580; }
