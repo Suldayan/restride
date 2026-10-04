@@ -135,16 +135,18 @@ export function initStart() {
         renderTrial(savedTrial);
         draftSamples = null;
         draftSavedTrialId = null;
+        startButton.disabled = !isEnabled || !calibrator.isCalibrated;
+        enableButton.disabled = isEnabled;
+        calibrateButton.disabled = !isEnabled;
+        status.textContent = 'Trial saved. Start another whenever you’re ready.';
         showScreen('trial');
         runState.innerHTML = `
           <div class="saved-confirmation">
             <span aria-hidden="true">✓</span>
-            <div><small>TRIAL SAVED</small><strong></strong><p>Saved to Previous Trials and ready to review.</p></div>
-            <button type="button" class="secondary-button" id="another-trial-btn">Record Another Trial</button>
+            <div><small>TRIAL SAVED</small><strong></strong><p>Saved to Previous Trials. Return to Start whenever you’re ready for another run.</p></div>
           </div>
         `;
         runState.querySelector('.saved-confirmation strong').textContent = savedTrial.label;
-        document.getElementById('another-trial-btn').addEventListener('click', resetForNextRun);
       } catch (error) {
         saveButton.disabled = false;
         saveError.textContent = draftSavedTrialId
